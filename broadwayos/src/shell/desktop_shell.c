@@ -75,7 +75,7 @@ static void shell_draw(WiiSurface *s) {
   surface_clear(s, 0xFF0B1118);
   widget_draw_panel(s, (WiiRect){0, 0, (wii_i32)s->width, 24}, 0xFF141E2A);
   font_draw_text(s, 8, 8, "WIIOS DESKTOP", 0xFFDCE8F6, 1);
-  font_draw_text(s, 430, 8, "LEFT RIGHT FOCUS  A ACTION", 0xFFB5C9DE, 1);
+  font_draw_text(s, 355, 8, "LEFT RIGHT FOCUS  A ACTION  B->LAUNCHER", 0xFFB5C9DE, 1);
   wm_draw(&g_wm, s);
 }
 

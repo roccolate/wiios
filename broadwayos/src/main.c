@@ -4,6 +4,7 @@
 #include "gfx/surface.h"
 #include "gfx/font_bitmap.h"
 #include "core/event_queue.h"
+#include "core/boot_config.h"
 #include "core/input.h"
 #include "core/path_resolver.h"
 #include "ui/widget.h"
@@ -19,6 +20,44 @@ void os_log_write(const char *msg);
 void ringlog_dump_stdout(void);
 WiiAppApi launcher_app_api(void);
 void launcher_app_set_external(const WiiAppApi *api, int available);
+
+static WiiResult build_root_path(const char *root, const char *rel, char *out, wii_u32 out_len) {
+  int n;
+  if (!root || !rel || !out || out_len == 0) return WIIOS_E_INVAL;
+  n = snprintf(out, (size_t)out_len, "%s/%s", root, rel);
+  if (n < 0 || (wii_u32)n >= out_len) return WIIOS_E_NOMEM;
+  return WIIOS_OK;
+}
+
+static WiiResult load_external_manifest_with_fallbacks(WiiServices *svc, WiiLoadedApp *out_app) {
+  const char *roots[32];
+  wii_u32 count;
+  WiiResult first_invalid = WIIOS_E_NOENT;
+  char manifest_path[160];
+  int truncated = 0;
+
+  if (!svc || !out_app) return WIIOS_E_INVAL;
+
+  count = path_resolver_collect_roots(roots, 32, &truncated);
+  if (truncated && svc->log_write) svc->log_write("manifest roots truncated");
+  for (wii_u32 i = 0; i < count; ++i) {
+    WiiResult rc = build_root_path(roots[i], WIIOS_HELLO_MANIFEST_REL, manifest_path, sizeof(manifest_path));
+    if (rc != WIIOS_OK) continue;
+
+    rc = app_loader_load_manifest(svc, manifest_path, out_app);
+    if (rc == WIIOS_OK) {
+      if (svc->log_write) {
+        char msg[200];
+        (void)snprintf(msg, sizeof(msg), "manifest loaded: %s", manifest_path);
+        svc->log_write(msg);
+      }
+      return WIIOS_OK;
+    }
+    if (rc == WIIOS_E_INVAL && first_invalid == WIIOS_E_NOENT) first_invalid = WIIOS_E_INVAL;
+  }
+
+  return first_invalid;
+}
 
 static void draw_status_overlay(WiiSurface *surface, const char *msg) {
   if (!surface || !msg || !msg[0]) return;
@@ -47,34 +86,6 @@ static void run_storage_error_screen(WiiSurface *surface) {
   input_shutdown();
 }
 
-static int boot_to_launcher(WiiServices *svc) {
-  void *buf;
-  wii_u32 len;
-  char boot_to[32];
-  char config_path[128];
-  WiiResult rc;
-
-  if (!svc || !svc->fs_read_all || !svc->fs_free) return 0;
-  if (path_resolver_join(WIIOS_CONFIG_REL, config_path, sizeof(config_path)) != WIIOS_OK) return 0;
-  rc = svc->fs_read_all(config_path, &buf, &len);
-  if (rc != WIIOS_OK) {
-    if (svc->log_write) svc->log_write("boot: config missing, default launcher");
-    return 1;
-  }
-  (void)len;
-
-  rc = ini_get_value((const char *)buf, "boot", "boot_to", boot_to, sizeof(boot_to));
-  svc->fs_free(buf);
-  if (rc != WIIOS_OK) {
-    if (svc->log_write) svc->log_write("boot: invalid boot_to, default launcher");
-    return 1;
-  }
-  if (boot_to[0] == 'd' || boot_to[0] == 'D') return 0;
-  if (boot_to[0] == 'l' || boot_to[0] == 'L') return 1;
-  if (svc->log_write) svc->log_write("boot: unknown boot_to value, default launcher");
-  return 1;
-}
-
 int main(void) {
   wii_u32 last_ms;
   wii_u32 now_ms;
@@ -84,12 +95,14 @@ int main(void) {
   WiiAppContext ctx;
   WiiSurface surface = vi_init_surface();
   const char *startup_status = 0;
-  const WiiShell *shell;
+  const WiiShell *shell = 0;
   WiiLoadedApp ext_app;
   WiiResult load_rc;
-  char hello_manifest[160];
+  char startup_status_buf[128];
   int ext_active = 0;
-  int launcher_mode;
+  int launcher_mode = 1;
+  WiiResult boot_rc = WIIOS_E_NOENT;
+  const char *boot_root = 0;
   WiiAppApi launcher = {0};
   int running = 1;
 
@@ -102,15 +115,13 @@ int main(void) {
   svc = service_manager_services();
   ctx = (WiiAppContext){ .abi_version = 1, .svc = svc, .os_reserved = 0 };
   (void)path_resolver_init(svc);
+  startup_status_buf[0] = '\0';
   if (path_resolver_config_missing()) startup_status = "CONFIG MISSING - USING DEFAULTS";
 
   svc->log_write("WiiOS v0.1.0-dev boot");
   event_queue_init();
 
-  load_rc = WIIOS_E_FAIL;
-  if (path_resolver_join(WIIOS_HELLO_MANIFEST_REL, hello_manifest, sizeof(hello_manifest)) == WIIOS_OK) {
-    load_rc = app_loader_load_manifest(svc, hello_manifest, &ext_app);
-  }
+  load_rc = load_external_manifest_with_fallbacks(svc, &ext_app);
   if (load_rc == WIIOS_OK) {
     ext_active = 1;
     svc->log_write("external app loaded: hello");
@@ -119,7 +130,16 @@ int main(void) {
     startup_status = (load_rc == WIIOS_E_NOENT) ? "APP MANIFEST MISSING" : "APP MANIFEST INVALID";
   }
 
-  launcher_mode = boot_to_launcher(svc);
+  boot_rc = boot_config_load_mode(svc, &launcher_mode, &boot_root);
+  if (boot_rc == WIIOS_E_NOENT) startup_status = "CONFIG MISSING - USING DEFAULTS";
+  if (boot_rc == WIIOS_E_INVAL) startup_status = "CONFIG INVALID - USING DEFAULTS";
+  if (boot_rc != WIIOS_OK && boot_rc != WIIOS_E_NOENT && boot_rc != WIIOS_E_INVAL) startup_status = "STORAGE ERROR";
+  if (boot_rc == WIIOS_OK && boot_root && svc->log_write) {
+    char msg[96];
+    (void)snprintf(msg, sizeof(msg), "boot config root: %s", boot_root);
+    svc->log_write(msg);
+  }
+
   if (launcher_mode) {
     launcher = launcher_app_api();
     launcher_app_set_external(ext_active ? &ext_app.api : 0, ext_active);
@@ -146,7 +166,26 @@ int main(void) {
       if (launcher_mode) {
         launcher.handle_event(&ev);
       } else {
-        shell->handle_event(&ev);
+        if (ev.type == EV_ACTION && ev.data.act.action == ACT_BACK) {
+          char logmsg[128];
+          const char *save_root = 0;
+          WiiResult rc = boot_config_save_mode(svc, 1, &save_root);
+          const char *shown_root = save_root ? save_root : path_resolver_root();
+          (void)snprintf(startup_status_buf, sizeof(startup_status_buf),
+              rc == WIIOS_OK ? "BOOT->LAUNCHER SAVED rc=%d %s" : "SAVE ERROR rc=%d %s",
+              (int)rc, shown_root);
+          startup_status = startup_status_buf;
+          if (svc->log_write) {
+            (void)snprintf(logmsg, sizeof(logmsg),
+                "desktop save %s rc=%d root=%s",
+                rc == WIIOS_OK ? "ok" : "fail",
+                (int)rc,
+                shown_root);
+            svc->log_write(logmsg);
+          }
+          continue;
+        }
+        if (shell) shell->handle_event(&ev);
         if (ext_active) ext_app.api.handle_event(&ev);
       }
     }
@@ -157,8 +196,10 @@ int main(void) {
       (void)dt_ms;
       launcher.draw(&surface);
     } else {
-      shell->update(dt_ms);
-      shell->draw(&surface);
+      if (shell) {
+        shell->update(dt_ms);
+        shell->draw(&surface);
+      }
       if (ext_active) ext_app.api.draw(&surface);
     }
     draw_status_overlay(&surface, startup_status);
@@ -169,7 +210,7 @@ int main(void) {
     launcher.shutdown();
   } else {
     if (ext_active) ext_app.api.shutdown();
-    shell->shutdown();
+    if (shell) shell->shutdown();
   }
   svc->log_write("WiiOS v0.1.0-dev shutdown");
   input_shutdown();

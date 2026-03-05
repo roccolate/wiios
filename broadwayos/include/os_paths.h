@@ -3,6 +3,8 @@
 
 #define WIIOS_ROOT_SD "sd:/wiios"
 #define WIIOS_ROOT_USB "usb:/wiios"
+#define WIIOS_APPDIR_SD "sd:/apps/wiios"
+#define WIIOS_APPDIR_USB "usb:/apps/wiios"
 
 #define WIIOS_CONFIG_REL "config.ini"
 #define WIIOS_CONFIG_TMP_REL "config.ini.tmp"
