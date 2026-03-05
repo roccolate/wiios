@@ -1,0 +1,7 @@
+#ifndef OS_CONFIG_H
+#define OS_CONFIG_H
+
+#define WIIOS_TARGET_WIDTH 640
+#define WIIOS_TARGET_HEIGHT 480
+
+#endif

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<app version="1">
+  <name>WiiOS</name>
+  <coder>WiiOS Team</coder>
+  <version>0.1.0</version>
+  <release_date>20260305</release_date>
+  <short_description>WiiOS shell/launcher MVP</short_description>
+  <long_description>BroadwayOS shell/launcher MVP with desktop and launcher modes.</long_description>
+</app>
