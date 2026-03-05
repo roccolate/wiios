@@ -17,6 +17,29 @@ static WiiResult null_fs_read_all(const char *path, void **out_ptr, wii_u32 *out
   return WIIOS_E_NOENT;
 }
 
+static WiiResult null_fs_write_all(const char *path, const void *data, wii_u32 len) {
+  (void)path;
+  (void)data;
+  (void)len;
+  return WIIOS_E_IO;
+}
+
+static WiiResult null_fs_exists(const char *path) {
+  (void)path;
+  return WIIOS_E_NOENT;
+}
+
+static WiiResult null_fs_mkdirs(const char *path) {
+  (void)path;
+  return WIIOS_E_IO;
+}
+
+static WiiResult null_fs_rename(const char *from, const char *to) {
+  (void)from;
+  (void)to;
+  return WIIOS_E_IO;
+}
+
 static void null_fs_free(void *ptr) { (void)ptr; }
 
 const WiiBackend *backend_null_get(void) {
@@ -26,6 +49,10 @@ const WiiBackend *backend_null_get(void) {
     .shutdown = null_shutdown,
     .fs_list = null_fs_list,
     .fs_read_all = null_fs_read_all,
+    .fs_write_all = null_fs_write_all,
+    .fs_exists = null_fs_exists,
+    .fs_mkdirs = null_fs_mkdirs,
+    .fs_rename = null_fs_rename,
     .fs_free = null_fs_free,
   };
   return &backend;

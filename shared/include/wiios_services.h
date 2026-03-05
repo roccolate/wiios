@@ -19,6 +19,10 @@ struct WiiServices {
   WiiVec2 (*input_get_pointer)(void);
   WiiResult (*fs_list)(const char *path, char *out_buf, wii_u32 out_len);
   WiiResult (*fs_read_all)(const char *path, void **out_ptr, wii_u32 *out_len);
+  WiiResult (*fs_write_all)(const char *path, const void *data, wii_u32 len);
+  WiiResult (*fs_exists)(const char *path);
+  WiiResult (*fs_mkdirs)(const char *path);
+  WiiResult (*fs_rename)(const char *from, const char *to);
   void (*fs_free)(void *ptr);
 };
 

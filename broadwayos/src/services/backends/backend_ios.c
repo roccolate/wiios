@@ -2,9 +2,13 @@
 
 #include <fat.h>
 #include <dirent.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+
+#define IOS_PATH_CAP 256
 
 static WiiResult ios_init(void) {
   return fatInitDefault() ? WIIOS_OK : WIIOS_E_IO;
@@ -82,6 +86,61 @@ static WiiResult ios_fs_read_all(const char *path, void **out_ptr, wii_u32 *out_
   return WIIOS_OK;
 }
 
+static WiiResult ios_fs_write_all(const char *path, const void *data, wii_u32 len) {
+  FILE *f;
+
+  if (!path || (!data && len > 0)) return WIIOS_E_INVAL;
+  f = fopen(path, "wb");
+  if (!f) return WIIOS_E_IO;
+  if (len > 0 && fwrite(data, 1, len, f) != len) {
+    fclose(f);
+    return WIIOS_E_IO;
+  }
+  fclose(f);
+  return WIIOS_OK;
+}
+
+static WiiResult ios_fs_exists(const char *path) {
+  struct stat st;
+  if (!path) return WIIOS_E_INVAL;
+  return stat(path, &st) == 0 ? WIIOS_OK : WIIOS_E_NOENT;
+}
+
+static WiiResult ios_mkdir_one(const char *path) {
+  struct stat st;
+  if (stat(path, &st) == 0) {
+    return S_ISDIR(st.st_mode) ? WIIOS_OK : WIIOS_E_IO;
+  }
+  if (mkdir(path, 0777) == 0 || errno == EEXIST) return WIIOS_OK;
+  return WIIOS_E_IO;
+}
+
+static WiiResult ios_fs_mkdirs(const char *path) {
+  char tmp[IOS_PATH_CAP];
+  char *p;
+  size_t len;
+
+  if (!path) return WIIOS_E_INVAL;
+  len = strlen(path);
+  if (len == 0 || len >= sizeof(tmp)) return WIIOS_E_INVAL;
+  memcpy(tmp, path, len + 1U);
+  if (tmp[len - 1] == '/') tmp[len - 1] = '\0';
+
+  for (p = tmp + 1; *p; ++p) {
+    if (*p == '/') {
+      *p = '\0';
+      if (ios_mkdir_one(tmp) != WIIOS_OK) return WIIOS_E_IO;
+      *p = '/';
+    }
+  }
+  return ios_mkdir_one(tmp);
+}
+
+static WiiResult ios_fs_rename(const char *from, const char *to) {
+  if (!from || !to) return WIIOS_E_INVAL;
+  return rename(from, to) == 0 ? WIIOS_OK : WIIOS_E_IO;
+}
+
 static void ios_fs_free(void *ptr) {
   free(ptr);
 }
@@ -93,6 +152,10 @@ const WiiBackend *backend_ios_get(void) {
     .shutdown = ios_shutdown,
     .fs_list = ios_fs_list,
     .fs_read_all = ios_fs_read_all,
+    .fs_write_all = ios_fs_write_all,
+    .fs_exists = ios_fs_exists,
+    .fs_mkdirs = ios_fs_mkdirs,
+    .fs_rename = ios_fs_rename,
     .fs_free = ios_fs_free,
   };
   return &backend;

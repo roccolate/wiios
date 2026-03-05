@@ -10,23 +10,25 @@ static int g_config_missing;
 static int g_using_usb;
 
 static WiiResult read_exists(WiiServices *svc, const char *path) {
-  void *buf;
-  wii_u32 len;
-  WiiResult rc;
-
-  rc = svc->fs_read_all(path, &buf, &len);
-  if (rc == WIIOS_OK) {
-    (void)len;
-    svc->fs_free(buf);
+  if (svc->fs_exists) return svc->fs_exists(path);
+  if (svc->fs_read_all && svc->fs_free) {
+    void *buf;
+    wii_u32 len;
+    WiiResult rc = svc->fs_read_all(path, &buf, &len);
+    if (rc == WIIOS_OK) {
+      (void)len;
+      svc->fs_free(buf);
+    }
+    return rc;
   }
-  return rc;
+  return WIIOS_E_INVAL;
 }
 
 WiiResult path_resolver_init(WiiServices *svc) {
   char cfg_path[128];
   WiiResult rc;
 
-  if (!svc || !svc->fs_read_all || !svc->fs_free) return WIIOS_E_INVAL;
+  if (!svc) return WIIOS_E_INVAL;
 
   g_config_missing = 0;
   g_using_usb = 0;

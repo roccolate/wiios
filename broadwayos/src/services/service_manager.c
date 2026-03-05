@@ -20,6 +20,10 @@ WiiResult service_manager_init(void) {
   g_services.input_get_pointer = input_get_pointer;
   g_services.fs_list = g_backend->fs_list;
   g_services.fs_read_all = g_backend->fs_read_all;
+  g_services.fs_write_all = g_backend->fs_write_all;
+  g_services.fs_exists = g_backend->fs_exists;
+  g_services.fs_mkdirs = g_backend->fs_mkdirs;
+  g_services.fs_rename = g_backend->fs_rename;
   g_services.fs_free = g_backend->fs_free;
   return WIIOS_OK;
 }
