@@ -1,22 +1,19 @@
-# WiiOS PoC
+# WiiOS
 
-WiiOS es un proof-of-concept de shell/launcher para Nintendo Wii (Broadway + IOS), construido como homebrew con `devkitPPC` y `libogc`.
+WiiOS es un shell/launcher homebrew para Nintendo Wii (Broadway sobre IOS), construido con `devkitPPC` y `libogc`.
 
-Este tag `v0.0.1` representa el demo original auditable del proyecto.
+## Estado actual (`v0.1.0`)
+- Arranque por HBC con package reproducible.
+- Render estable en VI/XFB.
+- Input real PAD/WPAD.
+- Resolución de storage con prioridad SD y fallback USB para config.
+- Persistencia de `boot_to` en `config.ini` con escritura atómica.
+- Manejo explícito de estados de arranque y errores de manifest.
 
-## Qué funciona hoy
-- Arranque desde Homebrew Channel con `boot.dol`.
-- Render de UI en pantalla real (VI/XFB).
-- Input real (`PAD/WPAD`).
-- Dos modos de interfaz: `desktop` y `launcher`.
-- Apps demo (`hello`, `filemgr`, `settings`).
-- Configuración en `config.ini` y manifest de app en `manifest.ini`.
-
-## Qué NO pretende este PoC
-- No instala canal/WAD.
-- No implementa guardados tipo título oficial en NAND.
-- No integra flujo oficial de Priiloader (queda como feature posterior).
-- No se considera release final para usuarios masivos.
+## Alcance actual
+- Distribución solo por Homebrew Channel.
+- Sin canal/WAD.
+- Sin Priiloader integrado.
 
 ## Requisitos
 - `devkitPPC`
@@ -29,17 +26,13 @@ cd wiios
 make clean && make
 ```
 
-Artefactos:
-- `build/wiios.elf`
-- `build/wiios.dol`
-
 ## Package (HBC)
 ```bash
 cd wiios
 make package
 ```
 
-Salida:
+Salida esperada:
 - `dist/apps/wiios/boot.dol`
 - `dist/apps/wiios/meta.xml`
 - `dist/apps/wiios/icon.png`
@@ -47,24 +40,18 @@ Salida:
 - `dist/apps/wiios/apps/hello/manifest.ini`
 
 ## Probar en Dolphin
-1. Abre Dolphin.
-2. `File > Open...`
-3. Carga `dist/apps/wiios/boot.dol`.
-4. Verifica navegación y render.
+1. Abrir `dist/apps/wiios/boot.dol`.
+2. Validar render.
+3. Validar controles.
+4. Cambiar `boot_to` y confirmar persistencia tras reinicio.
 
 ## Probar en Wii real
-1. Copia `dist/apps/wiios` a `sd:/apps/wiios`.
-2. Abre Homebrew Channel.
-3. Ejecuta `WiiOS`.
-4. Verifica render/input y salida con `HOME`.
+1. Copiar `dist/apps/wiios` a `sd:/apps/wiios`.
+2. Ejecutar desde Homebrew Channel.
+3. Validar render/input y persistencia de `boot_to`.
 
-## Controles actuales
+## Controles
 - `A`: aceptar
 - `B`: atrás
-- `LEFT/RIGHT`: cambiar foco o selección
+- `LEFT/RIGHT`: foco o selección
 - `HOME` (Wiimote) / `START` (GC): salir
-
-## Post-v0.0.1 roadmap
-- Persistencia completa de settings y estado.
-- Fallback SD/USB robusto y validado.
-- Hardening de errores + smoke tests más amplios.

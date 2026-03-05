@@ -1,7 +1,7 @@
-# Known Limits (v0.0.1)
+# Known Limits (v0.1.0)
 
-- Persistencia de settings parcial.
-- File manager básico, sin navegación completa de FS.
+- Catálogo de apps no dinámico (demo con `hello`).
+- Persistencia app-level general pendiente (solo settings consolidado).
 - Sin instalación como canal/WAD.
-- Priiloader fuera de alcance en este tag.
-- Sin suite amplia de pruebas automatizadas.
+- Priiloader fuera de alcance.
+- Sin pipeline automatizado de pruebas end-to-end.
