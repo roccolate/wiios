@@ -7,14 +7,18 @@
 static WiiAppContext *g_ctx;
 static char g_list_buf[256];
 static char g_apps_path[128];
+static WiiResult g_list_rc;
 
 static WiiResult filemgr_init(WiiAppContext *ctx) {
   g_ctx = ctx;
   g_list_buf[0] = '\0';
   g_apps_path[0] = '\0';
+  g_list_rc = WIIOS_E_FAIL;
   if (g_ctx && g_ctx->svc) {
     if (path_resolver_join(WIIOS_APPS_REL, g_apps_path, sizeof(g_apps_path)) == WIIOS_OK) {
-      (void)g_ctx->svc->fs_list(g_apps_path, g_list_buf, sizeof(g_list_buf));
+      g_list_rc = g_ctx->svc->fs_list(g_apps_path, g_list_buf, sizeof(g_list_buf));
+    } else {
+      g_list_rc = WIIOS_E_INVAL;
     }
     if (g_ctx->svc->log_write) g_ctx->svc->log_write("filemgr init");
   }
@@ -31,11 +35,15 @@ static WiiResult filemgr_draw(WiiSurface *surface) {
   widget_draw_panel(surface, (WiiRect){98, 88, 444, 32}, 0xFF1B4D6D);
   widget_draw_panel(surface, (WiiRect){98, 126, 444, 246}, 0xFF0F2636);
   font_draw_text(surface, 112, 100, "FILE MANAGER", 0xFFEAF6FF, 1);
-  font_draw_text(surface, 112, 140, "PATH SD:/WIIOS/APPS", 0xFFB7D4EA, 1);
-  if (g_list_buf[0]) {
+  font_draw_text(surface, 112, 140, g_apps_path[0] ? g_apps_path : "PATH UNKNOWN", 0xFFB7D4EA, 1);
+  if (g_list_rc == WIIOS_E_NOENT) {
+    font_draw_text(surface, 112, 160, "PATH NOT FOUND", 0xFF8FC2E4, 1);
+  } else if (g_list_rc != WIIOS_OK) {
+    font_draw_text(surface, 112, 160, "I/O ERROR", 0xFF8FC2E4, 1);
+  } else if (g_list_buf[0]) {
     font_draw_text(surface, 112, 160, g_list_buf, 0xFF8FC2E4, 1);
   } else {
-    font_draw_text(surface, 112, 160, "NO ENTRIES YET", 0xFF8FC2E4, 1);
+    font_draw_text(surface, 112, 160, "DIRECTORY EMPTY", 0xFF8FC2E4, 1);
   }
   (void)g_list_buf;
   return WIIOS_OK;

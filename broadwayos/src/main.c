@@ -2,9 +2,11 @@
 #include "../../shared/include/wiios_services.h"
 #include "../../shared/include/wiios_ini.h"
 #include "gfx/surface.h"
+#include "gfx/font_bitmap.h"
 #include "core/event_queue.h"
 #include "core/input.h"
 #include "core/path_resolver.h"
+#include "ui/widget.h"
 #include "shell/desktop_shell.h"
 #include "services/service_manager.h"
 #include "apps/loader/app_loader.h"
@@ -17,6 +19,33 @@ void os_log_write(const char *msg);
 void ringlog_dump_stdout(void);
 WiiAppApi launcher_app_api(void);
 void launcher_app_set_external(const WiiAppApi *api, int available);
+
+static void draw_status_overlay(WiiSurface *surface, const char *msg) {
+  if (!surface || !msg || !msg[0]) return;
+  widget_draw_panel(surface, (WiiRect){0, (wii_i32)surface->height - 26, (wii_i32)surface->width, 26}, 0xFF3A2E1F);
+  font_draw_text(surface, 10, (wii_i32)surface->height - 18, msg, 0xFFFFE8C9, 1);
+}
+
+static void run_storage_error_screen(WiiSurface *surface) {
+  WiiEvent ev;
+  int running = 1;
+
+  event_queue_init();
+  input_init();
+  while (running) {
+    input_poll_actions();
+    while (event_queue_pop(&ev) == WIIOS_OK) {
+      if (ev.type == EV_ACTION && ev.data.act.action == ACT_HOME) running = 0;
+    }
+    surface_clear(surface, 0xFF1B0F0F);
+    widget_draw_panel(surface, (WiiRect){40, 90, 560, 160}, 0xFF482020);
+    font_draw_text(surface, 66, 120, "STORAGE ERROR", 0xFFFFD0D0, 2);
+    font_draw_text(surface, 66, 160, "CHECK SD OR USB DEVICE", 0xFFFFE4CE, 1);
+    font_draw_text(surface, 66, 178, "PRESS HOME TO EXIT", 0xFFFFE4CE, 1);
+    vi_present(surface);
+  }
+  input_shutdown();
+}
 
 static int boot_to_launcher(WiiServices *svc) {
   void *buf;
@@ -54,8 +83,10 @@ int main(void) {
   WiiServices *svc;
   WiiAppContext ctx;
   WiiSurface surface = vi_init_surface();
+  const char *startup_status = 0;
   const WiiShell *shell;
   WiiLoadedApp ext_app;
+  WiiResult load_rc;
   char hello_manifest[160];
   int ext_active = 0;
   int launcher_mode;
@@ -64,22 +95,28 @@ int main(void) {
 
   if (service_manager_init() != WIIOS_OK) {
     os_log_write("service manager init failed");
+    run_storage_error_screen(&surface);
     vi_shutdown();
     return 1;
   }
   svc = service_manager_services();
   ctx = (WiiAppContext){ .abi_version = 1, .svc = svc, .os_reserved = 0 };
   (void)path_resolver_init(svc);
+  if (path_resolver_config_missing()) startup_status = "CONFIG MISSING - USING DEFAULTS";
 
-  svc->log_write("WiiOS MS3 boot");
+  svc->log_write("WiiOS v0.1.0-dev boot");
   event_queue_init();
 
-  if (path_resolver_join(WIIOS_HELLO_MANIFEST_REL, hello_manifest, sizeof(hello_manifest)) == WIIOS_OK &&
-      app_loader_load_manifest(svc, hello_manifest, &ext_app) == WIIOS_OK) {
+  load_rc = WIIOS_E_FAIL;
+  if (path_resolver_join(WIIOS_HELLO_MANIFEST_REL, hello_manifest, sizeof(hello_manifest)) == WIIOS_OK) {
+    load_rc = app_loader_load_manifest(svc, hello_manifest, &ext_app);
+  }
+  if (load_rc == WIIOS_OK) {
     ext_active = 1;
     svc->log_write("external app loaded: hello");
   } else {
     svc->log_write("external app load skipped");
+    startup_status = (load_rc == WIIOS_E_NOENT) ? "APP MANIFEST MISSING" : "APP MANIFEST INVALID";
   }
 
   launcher_mode = boot_to_launcher(svc);
@@ -124,6 +161,7 @@ int main(void) {
       shell->draw(&surface);
       if (ext_active) ext_app.api.draw(&surface);
     }
+    draw_status_overlay(&surface, startup_status);
     vi_present(&surface);
   }
 
@@ -133,7 +171,7 @@ int main(void) {
     if (ext_active) ext_app.api.shutdown();
     shell->shutdown();
   }
-  svc->log_write("WiiOS MS4 shutdown");
+  svc->log_write("WiiOS v0.1.0-dev shutdown");
   input_shutdown();
   service_manager_shutdown();
 
