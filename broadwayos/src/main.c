@@ -4,6 +4,7 @@
 #include "gfx/surface.h"
 #include "core/event_queue.h"
 #include "core/input.h"
+#include "core/path_resolver.h"
 #include "shell/desktop_shell.h"
 #include "services/service_manager.h"
 #include "apps/loader/app_loader.h"
@@ -21,10 +22,12 @@ static int boot_to_launcher(WiiServices *svc) {
   void *buf;
   wii_u32 len;
   char boot_to[32];
+  char config_path[128];
   WiiResult rc;
 
   if (!svc || !svc->fs_read_all || !svc->fs_free) return 0;
-  rc = svc->fs_read_all(WIIOS_CONFIG_PATH, &buf, &len);
+  if (path_resolver_join(WIIOS_CONFIG_REL, config_path, sizeof(config_path)) != WIIOS_OK) return 0;
+  rc = svc->fs_read_all(config_path, &buf, &len);
   if (rc != WIIOS_OK) return 0;
   (void)len;
 
@@ -44,6 +47,7 @@ int main(void) {
   WiiSurface surface = vi_init_surface();
   const WiiShell *shell;
   WiiLoadedApp ext_app;
+  char hello_manifest[160];
   int ext_active = 0;
   int launcher_mode;
   WiiAppApi launcher = {0};
@@ -56,11 +60,13 @@ int main(void) {
   }
   svc = service_manager_services();
   ctx = (WiiAppContext){ .abi_version = 1, .svc = svc, .os_reserved = 0 };
+  (void)path_resolver_init(svc);
 
   svc->log_write("WiiOS MS3 boot");
   event_queue_init();
 
-  if (app_loader_load_manifest(svc, WIIOS_HELLO_MANIFEST, &ext_app) == WIIOS_OK) {
+  if (path_resolver_join(WIIOS_HELLO_MANIFEST_REL, hello_manifest, sizeof(hello_manifest)) == WIIOS_OK &&
+      app_loader_load_manifest(svc, hello_manifest, &ext_app) == WIIOS_OK) {
     ext_active = 1;
     svc->log_write("external app loaded: hello");
   } else {

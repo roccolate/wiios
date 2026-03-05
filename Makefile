@@ -29,6 +29,7 @@ SRC := \
   broadwayos/src/core/input.c \
   broadwayos/src/core/action_map.c \
   broadwayos/src/core/event_queue.c \
+  broadwayos/src/core/path_resolver.c \
   broadwayos/src/gfx/vi.c \
   broadwayos/src/gfx/surface.c \
   broadwayos/src/gfx/font_bitmap.c \

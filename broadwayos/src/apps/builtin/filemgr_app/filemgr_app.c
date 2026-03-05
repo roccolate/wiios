@@ -1,16 +1,21 @@
 #include "wiios_services.h"
 #include "../../../ui/widget.h"
 #include "../../../gfx/font_bitmap.h"
+#include "../../../core/path_resolver.h"
 #include "os_paths.h"
 
 static WiiAppContext *g_ctx;
 static char g_list_buf[256];
+static char g_apps_path[128];
 
 static WiiResult filemgr_init(WiiAppContext *ctx) {
   g_ctx = ctx;
   g_list_buf[0] = '\0';
+  g_apps_path[0] = '\0';
   if (g_ctx && g_ctx->svc) {
-    (void)g_ctx->svc->fs_list(WIIOS_APPS_PATH, g_list_buf, sizeof(g_list_buf));
+    if (path_resolver_join(WIIOS_APPS_REL, g_apps_path, sizeof(g_apps_path)) == WIIOS_OK) {
+      (void)g_ctx->svc->fs_list(g_apps_path, g_list_buf, sizeof(g_list_buf));
+    }
     if (g_ctx->svc->log_write) g_ctx->svc->log_write("filemgr init");
   }
   return WIIOS_OK;
