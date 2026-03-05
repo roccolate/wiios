@@ -28,13 +28,22 @@ static int boot_to_launcher(WiiServices *svc) {
   if (!svc || !svc->fs_read_all || !svc->fs_free) return 0;
   if (path_resolver_join(WIIOS_CONFIG_REL, config_path, sizeof(config_path)) != WIIOS_OK) return 0;
   rc = svc->fs_read_all(config_path, &buf, &len);
-  if (rc != WIIOS_OK) return 0;
+  if (rc != WIIOS_OK) {
+    if (svc->log_write) svc->log_write("boot: config missing, default launcher");
+    return 1;
+  }
   (void)len;
 
   rc = ini_get_value((const char *)buf, "boot", "boot_to", boot_to, sizeof(boot_to));
   svc->fs_free(buf);
-  if (rc != WIIOS_OK) return 0;
-  return boot_to[0] == 'l' || boot_to[0] == 'L';
+  if (rc != WIIOS_OK) {
+    if (svc->log_write) svc->log_write("boot: invalid boot_to, default launcher");
+    return 1;
+  }
+  if (boot_to[0] == 'd' || boot_to[0] == 'D') return 0;
+  if (boot_to[0] == 'l' || boot_to[0] == 'L') return 1;
+  if (svc->log_write) svc->log_write("boot: unknown boot_to value, default launcher");
+  return 1;
 }
 
 int main(void) {
