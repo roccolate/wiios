@@ -1,2 +1,7 @@
 build/
 dist/
+*.rar
+*.zip
+*.7z
+*.elf
+*.dol
