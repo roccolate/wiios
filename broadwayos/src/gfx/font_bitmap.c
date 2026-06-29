@@ -6,7 +6,8 @@ static char up(char c) {
 }
 
 static const unsigned char *glyph(char c) {
-  static const unsigned char q[7] = {0x0E,0x11,0x02,0x04,0x04,0x00,0x04};
+  /* Fallback glyph for any character outside the supported set: a real '?'. */
+  static const unsigned char qmark[7] = {0x0E,0x11,0x01,0x02,0x04,0x00,0x04};
   static const unsigned char sp[7]= {0,0,0,0,0,0,0};
   static const unsigned char dash[7]={0,0,0,0x1F,0,0,0};
   static const unsigned char dot[7] = {0,0,0,0,0,0x0C,0x0C};
@@ -68,7 +69,7 @@ static const unsigned char *glyph(char c) {
     case 'R': return R; case 'S': return S; case 'T': return T; case 'U': return U;
     case 'V': return V; case 'W': return W; case 'X': return X; case 'Y': return Y;
     case 'Z': return Z;
-    default: return q;
+    default: return qmark;
   }
 }
 

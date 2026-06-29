@@ -18,6 +18,7 @@ void vi_present(WiiSurface *surface);
 void vi_shutdown(void);
 void os_log_write(const char *msg);
 void ringlog_dump_stdout(void);
+wii_u32 os_time_ms(void);
 WiiAppApi launcher_app_api(void);
 void launcher_app_set_external(const WiiAppApi *api, int available);
 
@@ -28,6 +29,12 @@ static WiiResult build_root_path(const char *root, const char *rel, char *out, w
   if (n < 0 || (wii_u32)n >= out_len) return WIIOS_E_NOMEM;
   return WIIOS_OK;
 }
+
+typedef enum {
+  STORAGE_ERR_EXIT = 0,
+  STORAGE_ERR_RETRY,
+  STORAGE_ERR_TIMEOUT
+} StorageErrAction;
 
 static WiiResult load_external_manifest_with_fallbacks(WiiServices *svc, WiiLoadedApp *out_app) {
   const char *roots[32];
@@ -65,25 +72,56 @@ static void draw_status_overlay(WiiSurface *surface, const char *msg) {
   font_draw_text(surface, 10, (wii_i32)surface->height - 18, msg, 0xFFFFE8C9, 1);
 }
 
-static void run_storage_error_screen(WiiSurface *surface) {
+static StorageErrAction run_storage_error_screen(WiiSurface *surface) {
+  /* Auto-exit timeout: 20 seconds. Lets a user with a dead Wiimote recover
+   * by power-cycling, and provides a clear exit if HOME cannot be reached. */
+  enum { AUTO_EXIT_MS = 20000 };
   WiiEvent ev;
-  int running = 1;
+  StorageErrAction result = STORAGE_ERR_TIMEOUT;
+  wii_u32 started_ms = os_time_ms();
+  wii_u32 last_input_ms = started_ms;
+  wii_u32 now_ms;
 
   event_queue_init();
   input_init();
-  while (running) {
+  for (;;) {
     input_poll_actions();
     while (event_queue_pop(&ev) == WIIOS_OK) {
-      if (ev.type == EV_ACTION && ev.data.act.action == ACT_HOME) running = 0;
+      if (ev.type != EV_ACTION) continue;
+      last_input_ms = os_time_ms();
+      if (ev.data.act.action == ACT_HOME) {
+        result = STORAGE_ERR_EXIT;
+        goto done;
+      }
+      if (ev.data.act.action == ACT_OK) {
+        result = STORAGE_ERR_RETRY;
+        goto done;
+      }
     }
+    now_ms = os_time_ms();
+    if (now_ms - last_input_ms >= (wii_u32)AUTO_EXIT_MS) {
+      result = STORAGE_ERR_TIMEOUT;
+      goto done;
+    }
+
     surface_clear(surface, 0xFF1B0F0F);
-    widget_draw_panel(surface, (WiiRect){40, 90, 560, 160}, 0xFF482020);
+    widget_draw_panel(surface, (WiiRect){40, 90, 560, 200}, 0xFF482020);
     font_draw_text(surface, 66, 120, "STORAGE ERROR", 0xFFFFD0D0, 2);
     font_draw_text(surface, 66, 160, "CHECK SD OR USB DEVICE", 0xFFFFE4CE, 1);
-    font_draw_text(surface, 66, 178, "PRESS HOME TO EXIT", 0xFFFFE4CE, 1);
+    font_draw_text(surface, 66, 178, "PRESS A TO RETRY", 0xFFFFE4CE, 1);
+    font_draw_text(surface, 66, 196, "PRESS HOME TO EXIT", 0xFFFFE4CE, 1);
+    {
+      wii_u32 remaining_ms = AUTO_EXIT_MS - (now_ms - last_input_ms);
+      wii_u32 remaining_s = (remaining_ms + 999U) / 1000U;
+      char countdown[32];
+      (void)snprintf(countdown, sizeof(countdown), "AUTO EXIT IN %02u S", (unsigned)remaining_s);
+      font_draw_text(surface, 66, 232, countdown, 0xFFE6B89E, 1);
+    }
     vi_present(surface);
   }
+done:
   input_shutdown();
+  return result;
 }
 
 int main(void) {
@@ -106,9 +144,14 @@ int main(void) {
   WiiAppApi launcher = {0};
   int running = 1;
 
-  if (service_manager_init() != WIIOS_OK) {
+  for (;;) {
+    if (service_manager_init() == WIIOS_OK) break;
     os_log_write("service manager init failed");
-    run_storage_error_screen(&surface);
+    StorageErrAction action = run_storage_error_screen(&surface);
+    if (action == STORAGE_ERR_RETRY) {
+      service_manager_shutdown();
+      continue;
+    }
     vi_shutdown();
     return 1;
   }

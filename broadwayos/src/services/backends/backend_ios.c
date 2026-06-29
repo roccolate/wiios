@@ -157,6 +157,12 @@ static WiiResult ios_fs_rename(const char *from, const char *to) {
   return rename(from, to) == 0 ? WIIOS_OK : WIIOS_E_IO;
 }
 
+static WiiResult ios_fs_remove(const char *path) {
+  if (!path) return WIIOS_E_INVAL;
+  if (!ios_path_has_device(path)) return WIIOS_E_NOENT;
+  return remove(path) == 0 ? WIIOS_OK : WIIOS_E_IO;
+}
+
 static void ios_fs_free(void *ptr) {
   free(ptr);
 }
@@ -172,6 +178,7 @@ const WiiBackend *backend_ios_get(void) {
     .fs_exists = ios_fs_exists,
     .fs_mkdirs = ios_fs_mkdirs,
     .fs_rename = ios_fs_rename,
+    .fs_remove = ios_fs_remove,
     .fs_free = ios_fs_free,
   };
   return &backend;

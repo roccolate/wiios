@@ -11,6 +11,7 @@
 static char g_root[32];
 static int g_config_missing;
 static int g_using_usb;
+static const WiiServices *g_svc;
 
 static const char *k_root_candidates[ROOT_CANDIDATE_COUNT] = {
   "sd:/wiios",
@@ -127,6 +128,7 @@ WiiResult path_resolver_init(WiiServices *svc) {
 
   if (!svc) return WIIOS_E_INVAL;
 
+  g_svc = svc;
   g_config_missing = 0;
   g_using_usb = 0;
 
@@ -221,7 +223,12 @@ wii_u32 path_resolver_collect_roots(const char **out_roots, wii_u32 out_cap, int
 }
 
 void path_resolver_set_root(const char *root) {
-  if (!root || !root[0]) return;
+  if (!root || !root[0]) {
+    if (g_svc && g_svc->log_write) {
+      g_svc->log_write("path_resolver_set_root: ignored null/empty");
+    }
+    return;
+  }
   set_active_root(root);
 }
 

@@ -23,6 +23,7 @@ struct WiiServices {
   WiiResult (*fs_exists)(const char *path);
   WiiResult (*fs_mkdirs)(const char *path);
   WiiResult (*fs_rename)(const char *from, const char *to);
+  WiiResult (*fs_remove)(const char *path);
   void (*fs_free)(void *ptr);
 };
 

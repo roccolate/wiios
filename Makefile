@@ -27,7 +27,6 @@ SRC := \
   broadwayos/src/core/time.c \
   broadwayos/src/core/log.c \
   broadwayos/src/core/input.c \
-  broadwayos/src/core/action_map.c \
   broadwayos/src/core/event_queue.c \
   broadwayos/src/core/boot_config.c \
   broadwayos/src/core/path_resolver.c \

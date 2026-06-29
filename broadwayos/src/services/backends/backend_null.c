@@ -40,6 +40,11 @@ static WiiResult null_fs_rename(const char *from, const char *to) {
   return WIIOS_E_IO;
 }
 
+static WiiResult null_fs_remove(const char *path) {
+  (void)path;
+  return WIIOS_E_NOENT;
+}
+
 static void null_fs_free(void *ptr) { (void)ptr; }
 
 const WiiBackend *backend_null_get(void) {
@@ -53,6 +58,7 @@ const WiiBackend *backend_null_get(void) {
     .fs_exists = null_fs_exists,
     .fs_mkdirs = null_fs_mkdirs,
     .fs_rename = null_fs_rename,
+    .fs_remove = null_fs_remove,
     .fs_free = null_fs_free,
   };
   return &backend;

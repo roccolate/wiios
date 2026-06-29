@@ -24,6 +24,7 @@ WiiResult service_manager_init(void) {
   g_services.fs_exists = g_backend->fs_exists;
   g_services.fs_mkdirs = g_backend->fs_mkdirs;
   g_services.fs_rename = g_backend->fs_rename;
+  g_services.fs_remove = g_backend->fs_remove;
   g_services.fs_free = g_backend->fs_free;
   return WIIOS_OK;
 }

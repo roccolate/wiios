@@ -41,10 +41,16 @@ static WiiResult launcher_handle_event(const WiiEvent *ev) {
   if (!ev) return WIIOS_E_INVAL;
 
   if (ev->type == EV_ACTION) {
-    if (ev->data.act.action == ACT_NEXT) g.selected = (g.selected + 1U) % 3U;
-    if (ev->data.act.action == ACT_PREV) g.selected = (g.selected + 2U) % 3U;
-    if (ev->data.act.action == ACT_BACK) g.launched = -1;
-    if (ev->data.act.action == ACT_OK) g.launched = (int)g.selected;
+    if (g.launched == -1) {
+      /* Tile navigation only meaningful at the launcher level. */
+      if (ev->data.act.action == ACT_NEXT) g.selected = (g.selected + 1U) % 3U;
+      if (ev->data.act.action == ACT_PREV) g.selected = (g.selected + 2U) % 3U;
+      if (ev->data.act.action == ACT_OK) g.launched = (int)g.selected;
+    } else {
+      /* Inside a sub-app: BACK returns to the launcher; navigation events
+       * (NEXT/PREV) are forwarded to the sub-app, not consumed by the launcher. */
+      if (ev->data.act.action == ACT_BACK) g.launched = -1;
+    }
   }
 
   if (g.launched == 1) g.filemgr.handle_event(ev);

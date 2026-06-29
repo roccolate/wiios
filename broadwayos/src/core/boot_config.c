@@ -268,7 +268,18 @@ static WiiResult save_to_root(WiiServices *svc, const char *root, int launcher_m
 
   rc = svc->fs_write_all(tmp, body, (wii_u32)strlen(body));
   if (rc != WIIOS_OK) return rc;
-  return svc->fs_rename(tmp, cfg);
+  rc = svc->fs_rename(tmp, cfg);
+  if (rc != WIIOS_OK && svc->fs_remove) {
+    /* Best-effort cleanup of the orphan tmp file. The tmp file's existence
+     * would shadow the next save attempt and confuse the user on power loss. */
+    WiiResult cleanup_rc = svc->fs_remove(tmp);
+    if (cleanup_rc != WIIOS_OK && svc->log_write) {
+      char msg[80];
+      (void)snprintf(msg, sizeof(msg), "boot config tmp cleanup failed rc=%d", (int)cleanup_rc);
+      svc->log_write(msg);
+    }
+  }
+  return rc;
 }
 
 WiiResult boot_config_load_mode(WiiServices *svc, int *out_launcher_mode, const char **out_root_used) {
@@ -302,7 +313,7 @@ WiiResult boot_config_save_mode(WiiServices *svc, int launcher_mode, const char 
   WiiResult last = WIIOS_E_FAIL;
   int truncated = 0;
 
-  if (!svc || !svc->fs_mkdirs || !svc->fs_write_all || !svc->fs_rename) return WIIOS_E_INVAL;
+  if (!svc || !svc->fs_mkdirs || !svc->fs_write_all || !svc->fs_rename || !svc->fs_remove) return WIIOS_E_INVAL;
   if (out_root_used) *out_root_used = 0;
 
   count = path_resolver_collect_roots(roots, BOOT_CONFIG_ROOT_CAP, &truncated);
