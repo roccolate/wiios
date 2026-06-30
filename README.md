@@ -1,83 +1,136 @@
 # WiiOS
 
-WiiOS es un shell/launcher homebrew para Nintendo Wii, ejecutado en Broadway sobre IOS y construido con `devkitPPC` + `libogc`.
+A small, reproducible homebrew shell/launcher for the Nintendo Wii. Built on
+Broadway over IOS with `devkitPPC` + `libogc`, distributed through the Homebrew
+Channel.
 
-El objetivo del proyecto es ofrecer una base pequeña, mantenible y distribuible por Homebrew Channel para experimentar con una experiencia tipo sistema operativo sobre Wii.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Platform: Wii](https://img.shields.io/badge/platform-Wii-green.svg)]()
+[![Status: v0.1.0](https://img.shields.io/badge/status-v0.1.0-orange.svg)]()
 
-## Estado actual (`v0.1.0`)
-- Arranque por HBC con package reproducible.
-- Render estable en VI/XFB.
-- Input real PAD/WPAD.
-- Resolución de storage con prioridad SD y fallback USB para config.
-- Persistencia de `boot_to` en `config.ini` con escritura atómica.
-- Manejo explícito de estados de arranque y errores de manifest.
+---
 
-## Estructura del repo
-- `broadwayos/`: runtime Wii, core, video, input, servicios, apps y shell.
-- `shared/`: tipos compartidos, eventos, parser INI y parser de manifests.
-- `assets/`: metadata e icono HBC, fuentes e iconos internos.
-- `sdroot_template/`: archivos que se copian al paquete HBC.
-- `docs/`: arquitectura, quickstart, smoke tests, límites y roadmap.
-- `RELEASE_NOTES_*.md`: notas de versiones publicadas.
+## What Is It
 
-## Alcance actual
-- Distribución solo por Homebrew Channel.
-- Sin canal/WAD.
-- Sin Priiloader integrado.
-- Sin acceso NAND tipo título oficial.
+WiiOS is a small homebrew shell for the Nintendo Wii that boots through the
+Homebrew Channel as a `.dol` and provides a launcher surface over IOS. The
+project is intentionally minimal and reproducible: there is no custom channel,
+no WAD, no NAND-level installation, just a single binary that boots, reads its
+config from SD or USB, and runs packaged apps.
 
-## Requisitos
+It is built on `devkitPPC` + `libogc` and is meant to be a tiny, easy-to-fork
+base for homebrew experiments on Wii portables and stock hardware.
+
+## Status
+
+`v0.1.0` is shipped. The next milestone is `v0.2` (see `docs/ROADMAP_v0.2-v0.3.md`).
+
+Done in `v0.1.0`:
+- HBC boot with a reproducible package.
+- Stable VI/XFB render.
+- Real PAD/WPAD input.
+- Storage resolution with SD priority and USB fallback for config.
+- Atomic `boot_to` persistence in `config.ini`.
+- Explicit handling of boot states and manifest errors.
+
+Explicit non-goals for now: custom channel / WAD distribution, Priiloader
+integration, title-style NAND access.
+
+## Features
+
+- HBC boot with a reproducible package layout.
+- VI/XFB render pipeline.
+- PAD/WPAD input wired through libogc.
+- SD-first storage with USB fallback for config.
+- Atomic `config.ini` writes (no half-flushed state).
+- Manifest-driven app registry.
+- Apps ship inside `sdroot_template/` and are bundled by `make package`.
+
+## Build
+
+### Requirements
+
 - `devkitPPC`
 - `libogc`
 - `make`
 
-Por defecto el `Makefile` espera:
+Default paths (override in your shell if needed):
 
 ```bash
 DEVKITPRO=/opt/devkitpro
 DEVKITPPC=/opt/devkitpro/devkitPPC
 ```
 
-## Build
+### Build and package
+
 ```bash
 make clean && make
-```
-
-## Package (HBC)
-```bash
 make package
 ```
 
-Salida esperada:
-- `dist/apps/wiios/boot.dol`
-- `dist/apps/wiios/meta.xml`
-- `dist/apps/wiios/icon.png`
-- `dist/apps/wiios/config.ini`
-- `dist/apps/wiios/apps/hello/manifest.ini`
+Expected artefacts after `make package`:
 
-## Probar en Dolphin
-1. Abrir `dist/apps/wiios/boot.dol`.
-2. Validar render.
-3. Validar controles.
-4. Cambiar `boot_to` y confirmar persistencia tras reinicio.
+```
+dist/apps/wiios/boot.dol
+dist/apps/wiios/meta.xml
+dist/apps/wiios/icon.png
+dist/apps/wiios/config.ini
+dist/apps/wiios/apps/hello/manifest.ini
+```
 
-## Probar en Wii real
-1. Copiar `dist/apps/wiios` a `sd:/apps/wiios`.
-2. Ejecutar desde Homebrew Channel.
-3. Validar render/input y persistencia de `boot_to`.
+## Test
 
-## Controles
-- `A`: aceptar
-- `B`: atrás
-- `LEFT/RIGHT`: foco o selección
-- `HOME` (Wiimote) / `START` (GC): salir
+### On Dolphin
 
-## Documentación
+1. Open `dist/apps/wiios/boot.dol` in Dolphin.
+2. Validate render.
+3. Validate controls.
+4. Change `boot_to` and confirm it persists after restart.
+
+### On a real Wii
+
+1. Copy `dist/apps/wiios/` to `sd:/apps/wiios/`.
+2. Launch from the Homebrew Channel.
+3. Validate render, input, and `boot_to` persistence.
+
+## Controls
+
+| Input | Action |
+|---|---|
+| `A` | Accept |
+| `B` | Back |
+| `LEFT` / `RIGHT` | Move focus / selection |
+| `HOME` (Wiimote) / `START` (GC) | Exit |
+
+## Project Structure
+
+- `broadwayos/`: Wii runtime — core, video, input, services, apps, shell.
+- `shared/`: shared types, event definitions, INI parser, manifest parser.
+- `assets/`: HBC icon, internal fonts, internal icons, metadata.
+- `sdroot_template/`: files copied into the HBC package.
+- `docs/`: architecture, quickstart, smoke tests, known limits, roadmap.
+
+## Documentation
+
 - [Quickstart](docs/QUICKSTART.md)
-- [Arquitectura](docs/ARCH.md)
+- [Architecture](docs/ARCH.md)
 - [Smoke test v0.1.0](docs/SMOKE_TEST_v0.1.0.md)
-- [Límites conocidos](docs/KNOWN_LIMITS.md)
-- [Roadmap v0.2-v0.3](docs/ROADMAP_v0.2-v0.3.md)
+- [Known limits](docs/KNOWN_LIMITS.md)
+- [Roadmap v0.2 - v0.3](docs/ROADMAP_v0.2-v0.3.md)
 
-## Artefactos
-Los directorios `build/` y `dist/`, junto con binarios empaquetados (`*.dol`, `*.elf`, `*.rar`, `*.zip`, `*.7z`), no se versionan. Para publicar builds reproducibles, genera el paquete con `make package` y adjúntalo a GitHub Releases.
+## Build artefacts (not versioned)
+
+The `build/` and `dist/` directories plus packaged binaries (`*.dol`, `*.elf`,
+`*.rar`, `*.zip`, `*.7z`) are not versioned. To publish a reproducible build,
+run `make package` and attach the resulting `dist/apps/wiios/` bundle to a
+GitHub Release.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+## Acknowledgements
+
+- The Wii homebrew scene and the `devkitPro` toolchain maintainers.
+- `libogc` for the Broadway / IOS host environment.
+- The RetroArch / HBC ecosystem for the packaging conventions.
