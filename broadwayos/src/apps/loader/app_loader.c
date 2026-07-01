@@ -31,7 +31,7 @@ WiiResult app_loader_load_manifest(WiiServices *svc, const char *manifest_path, 
   if (!out_app->manifest.id[0]) return WIIOS_E_INVAL;
 
   if (strcmp(out_app->manifest.id, "hello") == 0) {
-    if (!out_app->manifest.entry[0] || !out_app->manifest.type[0]) return WIIOS_E_INVAL;
+    if (!out_app->manifest.entry[0] || !out_app->manifest.kind[0]) return WIIOS_E_INVAL;
     out_app->api = hello_app_api();
     out_app->loaded = 1;
     return WIIOS_OK;

@@ -9,10 +9,15 @@
 
 typedef struct {
   char id[WIIOS_STR_SMALL];
-  char name[WIIOS_STR_MED];
-  char version[WIIOS_STR_SMALL];
+  char title[WIIOS_STR_MED];
+  char kind[WIIOS_STR_SMALL];
   char entry[WIIOS_STR_PATH];
   char icon[WIIOS_STR_PATH];
+  char version[WIIOS_STR_SMALL];
+  char requires[WIIOS_STR_MED];
+
+  /* Legacy aliases kept while WiiOS migrates to retrocore-spec fields. */
+  char name[WIIOS_STR_MED];
   char type[WIIOS_STR_SMALL];
 } WiiManifest;
 
