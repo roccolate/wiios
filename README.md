@@ -193,9 +193,10 @@ dist/apps/wiios/apps/hello/manifest.ini
 
 - [Quickstart](docs/QUICKSTART.md)
 - [Architecture](docs/ARCH.md)
-- [Smoke test v0.1.0](docs/SMOKE_TEST_v0.1.0.md)
+- [Smoke test v0.1.x](docs/SMOKE_TEST_v0.1.0.md)
 - [Known limits](docs/KNOWN_LIMITS.md)
 - [Roadmap v0.2 - v0.3](docs/ROADMAP_v0.2-v0.3.md)
+- [SPEC v0.2 — App Registry](docs/SPEC_v0.2_APP_REGISTRY.md)
 
 ## Build artefacts (not versioned)
 
