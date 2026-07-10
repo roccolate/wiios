@@ -197,6 +197,7 @@ dist/apps/wiios/apps/hello/manifest.ini
 - [Known limits](docs/KNOWN_LIMITS.md)
 - [Roadmap v0.2 - v0.3](docs/ROADMAP_v0.2-v0.3.md)
 - [SPEC v0.2 — App Registry](docs/SPEC_v0.2_APP_REGISTRY.md)
+- [Retrocore adoption notes](docs/RETROCORE_ADOPTION.md)
 
 ## Build artefacts (not versioned)
 
