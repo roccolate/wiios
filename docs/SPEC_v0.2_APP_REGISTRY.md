@@ -8,6 +8,40 @@ registry while keeping the Homebrew Channel package layout simple and safe.
 This spec documents the intended `v0.2.0` behavior. It should be implemented in
 small steps without breaking the existing `apps/hello/manifest.ini` demo.
 
+## Retrocore alignment
+
+The app registry should follow the shared `retrocore-spec` app-manifest
+vocabulary where it helps, without depending on any shared runtime.
+
+Adopt from retrocore:
+
+- canonical manifest field names,
+- app capability vocabulary,
+- launch/failure vocabulary,
+- logical event names where useful for tests and docs.
+
+Do not adopt from retrocore:
+
+- runtime code,
+- renderer code,
+- platform abstraction layers,
+- assumptions about POSIX, terminal UIs, keyboard/mouse, or non-Wii storage.
+
+WiiOS remains native to:
+
+- `libogc`,
+- Homebrew Channel package layout,
+- PAD/WPAD input,
+- VI/XFB rendering,
+- SD/USB/FAT-style Wii paths,
+- `.dol` build/package flow.
+
+See also:
+
+- `docs/RETROCORE_ADOPTION.md`
+- `retrocore-spec/contracts/app-manifest.md`
+- `retrocore-spec/adapters/wiios.md`
+
 ## Current baseline
 
 Current behavior:
@@ -42,6 +76,8 @@ HELLO   FILES   SETTINGS
 - Preserve the `hello` demo app.
 - Avoid crashes on bad manifests.
 - Avoid path traversal and buffer overflows.
+- Emit structured registry/failure status using retrocore-compatible vocabulary
+  where practical.
 
 ## Non-goals for v0.2
 
@@ -50,6 +86,7 @@ HELLO   FILES   SETTINGS
 - WAD/channel behavior.
 - Network app catalog.
 - Full desktop environment.
+- Shared retrocore runtime dependency.
 
 ## Package layout
 
@@ -87,6 +124,18 @@ icon=icon.bin
 version=0.1.0
 requires=input,storage,window
 ```
+
+Canonical fields follow retrocore vocabulary:
+
+| Field | Required | Meaning |
+|---|---:|---|
+| `id` | yes | Stable app id. |
+| `title` | yes | Human-facing label. |
+| `kind` | yes | App kind such as `system_app`, `bundled_app`, `external_app`, `demo_app`, or a WiiOS extension. |
+| `entry` | yes | WiiOS-local launch target or future app entry path. |
+| `icon` | no | Symbolic icon id or local icon reference. |
+| `version` | no | App version string. |
+| `requires` | no | Comma-separated capability list. |
 
 Legacy aliases are supported by the current parser:
 
@@ -143,6 +192,43 @@ Reject:
 - IDs with spaces,
 - duplicate IDs.
 
+## Capability vocabulary
+
+Use retrocore-compatible capability names where possible:
+
+- `input`
+- `storage`
+- `window`
+- `network`
+- `audio`
+- `shell`
+- `settings`
+- `timer`
+
+Wii-specific capabilities should use a prefix:
+
+- `wii:sd`
+- `wii:usb`
+- `wii:wpad`
+- `wii:gcpad`
+- `wii:xfb`
+
+## Failure vocabulary
+
+Suggested registry/launch failure values:
+
+| Failure | Use when |
+|---|---|
+| `not_found` | Manifest or app id is missing. |
+| `invalid_manifest` | Manifest exists but fails parsing or validation. |
+| `missing_capability` | App requires a capability not available on the current WiiOS runtime. |
+| `launch_failed` | App is valid but could not start. |
+| `permission_denied` | Policy blocks the app. |
+| `unsupported_platform` | Manifest/app kind is valid but unsupported by WiiOS. |
+
+User-facing messages may remain shorter, but logs and registry state should use
+these values where practical.
+
 ## Registry entry model
 
 Suggested C struct shape:
@@ -153,12 +239,14 @@ typedef enum {
   WII_APP_REG_INVALID_MANIFEST,
   WII_APP_REG_DUPLICATE_ID,
   WII_APP_REG_UNSUPPORTED_KIND,
-  WII_APP_REG_ENTRY_MISSING
+  WII_APP_REG_ENTRY_MISSING,
+  WII_APP_REG_MISSING_CAPABILITY
 } WiiAppRegistryStatus;
 
 typedef struct {
   WiiManifest manifest;
   WiiAppRegistryStatus status;
+  char failure_code[32];
   char manifest_path[160];
   char error[80];
 } WiiAppRegistryEntry;
@@ -183,6 +271,7 @@ The launcher should be able to render both valid and invalid entries.
    - parse manifest,
    - validate required fields,
    - check duplicate IDs,
+   - validate capabilities if feasible,
    - append registry entry.
 5. If registry is empty, launcher should show a clear empty-state message.
 
@@ -196,6 +285,7 @@ Expected UI behavior:
 - invalid app: disabled/error entry with a short reason,
 - duplicate ID: disabled/error entry,
 - missing manifest: disabled/error entry or omitted with log entry,
+- unsupported kind: disabled/error entry,
 - empty catalog: show `NO APPS FOUND` or equivalent.
 
 Expected log behavior:
@@ -203,7 +293,8 @@ Expected log behavior:
 - log root used,
 - log each manifest path scanned,
 - log parse/validation errors,
-- log duplicate IDs.
+- log duplicate IDs,
+- log unsupported kinds/capabilities.
 
 ## Launcher behavior
 
@@ -218,6 +309,19 @@ For v0.2, launcher should become data-driven:
 - `LEFT`/`RIGHT` should wrap over the current entry count.
 - `A` should open valid entries only.
 - `B` should return from sub-app to launcher.
+
+## Desktop/window vocabulary
+
+The registry should not force desktop mode yet, but it should not block it.
+
+When an app eventually opens in desktop mode, use shared vocabulary in docs/tests:
+
+- app launch creates or focuses a window/panel,
+- focused window receives actions,
+- `focus_next` cycles eligible windows/panels,
+- close/back resolves the focused window/panel.
+
+WiiOS may implement panels/cards instead of draggable overlapping windows.
 
 ## Compatibility requirement
 
@@ -246,8 +350,9 @@ entry=app.elf
 4. Keep `FILES` and `SETTINGS` as built-in system entries.
 5. Preserve fixed `hello_app_api()` mapping for `id=hello` until true dynamic app
    loading exists.
-6. Update smoke tests.
-7. Update README and ARCH again after implementation.
+6. Add failure/status strings using the vocabulary in this spec.
+7. Update smoke tests.
+8. Update README and ARCH again after implementation.
 
 ## Acceptance criteria
 
@@ -256,5 +361,6 @@ entry=app.elf
 - Adding a second valid manifest makes it appear in the launcher.
 - Invalid manifest appears as a recoverable error entry or clear status message.
 - Duplicate IDs do not crash and are reported.
+- Unsupported app kinds/capabilities do not crash and are reported.
 - Launcher navigation works with 0, 1, 2, and many registry entries.
 - No app can escape `<root>/apps/<app_id>/` through path traversal.
